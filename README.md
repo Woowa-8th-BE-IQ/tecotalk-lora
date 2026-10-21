@@ -7,7 +7,7 @@
 | # | 파일 | 클래스 | 내용 |
 |---|---|---|---|
 | 1 | `s01_network.py` | `NetworkToLoRA` | 신경망 = 가중치 → 풀 파인튜닝 vs LoRA 우회로 |
-| 2 | (예정) | | 행렬 분해: d×d → (d×r)(r×d), 파라미터 수 |
+| 2 | `s02_matrix.py` | `LowRankSplit` | ΔW = B × A, r 다이얼, 0.39% |
 | 3 | (예정) | | r, α, target modules |
 | 4 | (예정) | | 학습률 2D: 보폭별 수렴/발산 |
 | 5 | (예정) | | 3D 손실 골짜기: SGD vs Momentum vs AdamW |

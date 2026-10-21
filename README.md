@@ -10,8 +10,10 @@
 | 2 | `s02_matrix.py` | `LowRankSplit` | ΔW = B × A, r 다이얼, 0.39% |
 | 3 | `s03_hyperparams.py` | `Hyperparams` | α 볼륨, α/r, target modules, 기본값 |
 | 4 | `s04_learning_rate.py` | `LearningRate` | 학습률 = 보폭, 4가지 η 비교, 로스 곡선 |
-| 5 | (예정) | | 3D 손실 골짜기: SGD vs Momentum vs AdamW |
-| 6 | (선택) | | Muon: 골짜기 펴기 |
+| 5 | `s05_optimizers.py` | `Optimizers3D` | 3D 골짜기: SGD vs Momentum vs AdamW (렌더 약 5분) |
+| 6 | `s06_muon.py` | `Muon` | Muon 직교화, 특이값, QK-Clip |
+| 7 | `s07_active_params.py` | `ActiveParams` | MoE 활성 파라미터 vs LoRA |
+| 8 | `s08_outro.py` | `Outro` | 넓게 배우고 좁게 고치기, 요약, 엔딩 |
 
 ## 실행
 

@@ -6,6 +6,7 @@
 
 | # | 파일 | 클래스 | 내용 |
 |---|---|---|---|
+| 0 | `s00_partial.py` | `PartialDerivative` | 편미분: 하나 고정 → 단면 → 방향별 델타 → 기울기 (렌더 약 5분) |
 | 1 | `s01_network.py` | `NetworkToLoRA` | 신경망 = 가중치 → 풀 파인튜닝 vs LoRA 우회로 |
 | 2 | `s02_matrix.py` | `LowRankSplit` | ΔW = B × A, r 다이얼, 0.39% |
 | 3 | `s03_hyperparams.py` | `Hyperparams` | α 볼륨, α/r, target modules, 기본값 |

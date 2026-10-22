@@ -240,21 +240,85 @@ class PartialDerivative(ThreeDScene):
         grad = Arrow3D(ax.c2p(*base), ax.c2p(X0 + gx * k, Y0 + gy * k, 0), color=FG, thickness=0.04)
         down = Arrow3D(ax.c2p(*base), ax.c2p(X0 - gx * k, Y0 - gy * k, 0), color=LORA, thickness=0.045)
         drop = DashedLine(ax.c2p(X0, Y0, z0), ax.c2p(*base), color=MUTED, stroke_width=2)
-        cap = self.swap(cap, self.cap("방향별 델타를 모은 화살표  =  기울기 ∇z"))
-        self.play(Create(drop), FadeIn(gxv), FadeIn(gyv))
-        self.play(FadeIn(grad))
-        grad_tex = self.fixed(MathTex(r"\nabla z = \left(\frac{\partial z}{\partial x},\ \frac{\partial z}{\partial y}\right) = (0.65,\ 0.80)",
-                                      font_size=38).to_edge(DOWN, buff=0.5))
-        self.play(FadeOut(total), FadeIn(grad_tex))
-        self.wait(1.0)
 
-        cap = self.swap(cap, self.cap("그 반대로 가면 가장 가파르게 내려간다", LORA))
-        self.play(FadeIn(down))
-        step_tex = self.fixed(MathTex(r"\Delta x = -\eta\,\frac{\partial z}{\partial x},\ \ \Delta y = -\eta\,\frac{\partial z}{\partial y}"
-                                      r"\ \Rightarrow\ \Delta z \approx -\eta\left(0.65^2 + 0.80^2\right) < 0",
-                                      font_size=34).to_edge(DOWN, buff=0.5))
-        self.play(FadeOut(grad_tex), FadeIn(step_tex))
-        self.wait(2.5)
+        def lab3d(txt, col, pos):
+            m = t(txt, 22, col).move_to(pos)
+            self.add_fixed_orientation_mobjects(m)
+            self.remove(m)
+            return m
+
+        l_gx = lab3d("x 방향 0.65", ACCENT, ax.c2p(X0 + gx * k + 0.55, Y0 - 0.35, 0))
+        l_gy = lab3d("y 방향 0.80", YCOL, ax.c2p(X0 - 0.55, Y0 + gy * k + 0.25, 0))
+        l_g = lab3d("기울기 ∇z (오르막)", FG, ax.c2p(X0 + gx * k + 0.9, Y0 + gy * k + 0.3, 0))
+        l_d = lab3d("−∇z (내리막)", LORA, ax.c2p(X0 - gx * k - 1.0, Y0 - gy * k + 0.45, 0))
+
+        def panel(*mobs):
+            body = VGroup(*mobs).arrange(DOWN, buff=0.18)
+            bg = BackgroundRectangle(body, color=BG, fill_opacity=0.88, buff=0.22)
+            return self.fixed(VGroup(bg, body).to_edge(DOWN, buff=0.9))
+
+        cap = self.swap(cap, self.cap("방향별 기울기를 모은 화살표  =  기울기 ∇z"))
+        self.play(Create(drop), FadeIn(gxv), FadeIn(gyv), FadeIn(l_gx), FadeIn(l_gy))
+        self.play(FadeIn(grad), FadeIn(l_g))
+        p_now = panel(MathTex(r"\nabla z = \left(\frac{\partial z}{\partial x},\ \frac{\partial z}{\partial y}\right) = (0.65,\ 0.80)",
+                              font_size=36))
+        self.play(FadeOut(total), FadeIn(p_now))
+        self.wait(1.2)
+
+        # 반대 방향
+        cap = self.swap(cap, self.cap("기울기는 오르막을 가리킨다  →  반대로 가면 내리막", LORA))
+        self.play(FadeIn(down), FadeIn(l_d))
+        self.wait(0.8)
+
+        # (1) 기울기 × 거리 = 높이
+        cap = self.swap(cap, self.cap("기울기 × 움직인 거리  =  올라간 높이"))
+        nxt = panel(
+            MathTex(r"\Delta z", r"\approx", r"0.65", r"\cdot\Delta x", "+", r"0.80", r"\cdot\Delta y", font_size=40),
+            t("x로 Δx 걸으면 0.65·Δx 오르고, y로 Δy 걸으면 0.80·Δy 오른다  →  더한다", 24, MUTED),
+        )
+        nxt[1][0][2].set_color(ACCENT)
+        nxt[1][0][5].set_color(YCOL)
+        self.play(FadeOut(p_now), FadeIn(nxt))
+        p_now = nxt
+        self.wait(2.2)
+
+        # (2) 걸음 = 기울기 × 상수(−η)
+        cap = self.swap(cap, self.cap("걸음은 어떻게 정할까?  기울기에 같은 상수를 곱한다", ACCENT))
+        nxt = panel(
+            MathTex(r"\Delta x = ", r"-\eta", r"\times 0.65 \qquad \Delta y = ", r"-\eta", r"\times 0.80", font_size=40),
+            t("η (에타) = 모든 방향에 똑같이 곱하는 상수 = 학습률", 26, ACCENT),
+            t("−  :  기울기 반대(내리막)로   ·   가파른 방향일수록 더 많이 걷는다", 24, MUTED),
+        )
+        nxt[1][0][1].set_color(ACCENT)
+        nxt[1][0][3].set_color(ACCENT)
+        self.play(FadeOut(p_now), FadeIn(nxt))
+        p_now = nxt
+        self.wait(2.8)
+
+        # 숫자 예시
+        cap = self.swap(cap, self.cap("η = 0.1 로 걸어보면", ACCENT))
+        nxt = panel(
+            MathTex(r"\Delta x = -0.065 \qquad \Delta y = -0.080", font_size=38),
+            MathTex(r"\Delta z \approx 0.65\times(-0.065) + 0.80\times(-0.080) = -0.106", font_size=36),
+        )
+        nxt[1][1].set_color(LORA)
+        self.play(FadeOut(p_now), FadeIn(nxt))
+        p_now = nxt
+        self.play(dot.animate.move_to(ax.c2p(X0 - 0.065 * 6, Y0 - 0.08 * 6, f(X0 - 0.39, Y0 - 0.48))), run_time=1.0)
+        cap = self.swap(cap, self.cap("z가 줄었다  →  내려갔다", LORA))
+        self.wait(1.6)
+
+        # 일반: 항상 음수
+        cap = self.swap(cap, self.cap("(1)에 (2)를 넣으면  →  왜 항상 내려갈까?", LORA))
+        step_tex = panel(
+            MathTex(r"\Delta z \approx 0.65 \times (-\eta \times 0.65) + 0.80 \times (-\eta \times 0.80)", font_size=36),
+            t("(1)의 Δx, Δy 자리에 (2)의 걸음을 넣으면  →  기울기 × 기울기 = 제곱", 24, MUTED),
+            MathTex(r"= -\eta\,(0.65^2 + 0.80^2)\ <\ 0", font_size=40, color=LORA),
+            t("제곱은 항상 양수  →  기울기가 어떤 값이든 반대로 걸으면 반드시 내려간다", 24, MUTED),
+        )
+        self.play(FadeOut(p_now), FadeIn(step_tex))
+        self.wait(3.0)
+        self.play(FadeOut(l_gx), FadeOut(l_gy), FadeOut(l_g), FadeOut(l_d))
 
         # ---------- 8) 일반화 ----------
         self.play(*[FadeOut(m) for m in self.mobjects if m not in (cap,)], FadeOut(step_tex), run_time=0.8)

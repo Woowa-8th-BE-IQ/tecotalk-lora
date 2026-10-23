@@ -1,50 +1,45 @@
 # LoRA로 보는 파인튜닝과 학습의 원리
 
 우아한테크코스 8기 테코톡 발표용 Manim 애니메이션.
+발표는 **영상 재생 → 설명 → 다음 영상** 방식으로 진행한다.
 
-## 발표 순서
+> 처음 보는 사람(또는 새 채팅)은 **[`docs/00_HANDOFF.md`](docs/00_HANDOFF.md)** 부터 읽을 것.
 
-| # | 단계 | 내용 | 파일 · 클래스 |
-|---|---|---|---|
-| 01 | 배경 | 모델 = 숫자로 이어진 선, 순전파 | `s01_network` `NetworkToLoRA` (-n 0,11) |
-| 02 | 배경 | 손실: 다음 단어 확률 → −log p → 평균 | `s00a_loss` `LossCalc` |
-| 03 | 배경 | 가중치 1개: 기울기 반대로 한 걸음 | `s04_learning_rate` `LearningRate` (-n 0,11) |
-| 04 | 배경 | 편미분: 단면 → 방향별 델타 → 기울기 → η | `s00_partial` `PartialDerivative` |
-| 05 | 배경 | 역전파 (연쇄법칙 없이, LLM 버전) | `s00c_backprop` `Backprop` |
-| 06 | 배경 | 배치와 울퉁불퉁한 로스 곡선 | `s00d_curve` `TrainingCurve` |
-| 07 | 문제 | GPT-3 175B 풀 파인튜닝 비용 | `s01c_problem` `ProblemScale` |
-| 08 | 해결 | 원본 얼리고 우회로 (B=0 시작, 두 길 합산) | `s01_network` `NetworkToLoRA` (-n 12) |
-| 09 | 전체 그림 | h = Wx + (α/r)·BAx 지도 | `s01d_roadmap` `Roadmap` |
-| 10 | 세부 | 왜 가중치는 행렬인가, 4096 vs 70억 | `s02a_weights_matrix` `WeightsAreMatrix` |
-| 11 | 세부 | ΔW = B × A, 0.39% | `s02_matrix` `LowRankSplit` |
-| 12 | 세부 | r 트레이드오프 (비용↑, 성능 포화) | `s02b_rank_tradeoff` `RankTradeoff` |
-| 13 | 세부 | α, α/r, target modules | `s03_hyperparams` `Hyperparams` |
-| 14 | 세부 | 학습률 크기별 비교 | `s04_learning_rate` `LearningRate` (-n 13) |
-| 15 | 세부 | SGD vs Momentum vs AdamW | `s05_optimizers` `Optimizers3D` |
-| 16 | 회수 | LoRA 논문 결과 | `s01c_problem` `PaperResult` |
-| 17 | 확장 | 활성 파라미터(MoE) vs LoRA | `s07_active_params` `ActiveParams` |
-| 18 | 마무리 | 넓게 배우고 좁게 고친다 | `s08_outro` `Outro` |
-| B1 | 백업 | Muon, QK-Clip | `s06_muon` `Muon` |
-| B2 | 백업 | ΔW와 연쇄법칙, δ·xᵀ = rank 1 | `s00b_delta_w` `DeltaW` |
+## 핵심 메시지
 
-구간 렌더: `./render_part.sh <파일> <클래스> <시작,끝> <출력이름> [품질]`
+1. 최적값은 **편미분**으로 찾는다: 하나만 남기고 고정해 미분 → 방향별 기울기를 모아 반대로 한 걸음.
+2. 그 지형의 높이가 **손실**이고, 우리가 구하는 건 고칠 양 **ΔW**다.
+3. **LoRA**는 거대한 ΔW를 작은 행렬 두 개(B × A)로 표현해서 학습한다. 원본 W는 그대로.
 
-## 실행
+## 본편 영상 (발표 순서)
+
+| 순서 | 내용 | 파일 · 클래스 |
+|---|---|---|
+| 1 | 편미분: 하나 고정 → 단면 → 방향별 델타 → 반대로 한 걸음 (η) | `s00_partial` · `PartialDerivative` |
+| 2 | 공 굴리기: 나침반(방향별 증감) + 손실 지형 | `s00e_ball` · `BallDescent` |
+| (선택) | 손실 계산: 다음 단어 확률 → −log p | `s00a_loss` · `LossCalc` |
+| 3 | ΔW: 가중치 4096개로 확장, 가중치는 표(행렬), 실제 크기 | `s00b_delta_w` · `DeltaW` |
+| 4 | 작은 행렬 두 개로 큰 행렬: 구구단표 → 패턴 → 근사 → 학습 | `s02c_lora_matrix` · `LoRAMatrix` |
+
+나머지 장면은 이전 버전, 추가 후보, 백업이다. 목록은 [`docs/05_PRODUCTION.md`](docs/05_PRODUCTION.md).
+
+## 문서
+
+| 문서 | 내용 |
+|---|---|
+| [`docs/00_HANDOFF.md`](docs/00_HANDOFF.md) | 전체 요약, 현재 상태, 열린 문제, 다음 할 일 |
+| [`docs/01_MESSAGE.md`](docs/01_MESSAGE.md) | 전달하려는 메시지와 시나리오 |
+| [`docs/02_SCRIPT.md`](docs/02_SCRIPT.md) | 영상별 발표 대본 |
+| [`docs/03_CONCEPTS.md`](docs/03_CONCEPTS.md) | 개념, 숫자, 정확성 주의점, 예상 질문 |
+| [`docs/04_DECISIONS.md`](docs/04_DECISIONS.md) | 넣고 뺀 것과 이유 |
+| [`docs/05_PRODUCTION.md`](docs/05_PRODUCTION.md) | 환경, 렌더, 검수, 장면 파일 지도 |
+
+## 빠른 실행
 
 ```bash
-# macOS
-brew install py3cairo ffmpeg pango pkg-config
-brew install --cask mactex-no-gui   # 수식(MathTex)용
-
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-
-./render.sh s01_network NetworkToLoRA      # 480p 미리보기
-./render.sh s01_network NetworkToLoRA h    # 1080p 발표용
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+./render.sh s02c_lora_matrix LoRAMatrix m          # 720p
+python3 tools/contact_sheet.py media/videos/s02c_lora_matrix/720p30/LoRAMatrix.mp4 check.png 12
 ```
 
-결과: `media/videos/<파일>/<해상도>/<클래스>.mp4`
-
-## 스타일
-
-색과 폰트는 `common/style.py` 한 곳에서 관리. 한글은 `Noto Sans CJK KR`.
+자세한 환경 설정은 `docs/05_PRODUCTION.md`.

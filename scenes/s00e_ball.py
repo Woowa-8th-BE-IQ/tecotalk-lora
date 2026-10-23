@@ -1,5 +1,7 @@
-"""씬 0-e. 좌: 가중치 평면 (w1, w2)  /  우: 손실 지형 L(w1, w2).
-점 = 가중치 값, 공 = 그때의 손실. 편미분 두 개 → 가장 빨리 내려가는 방향 → 한 걸음씩 굴러 내려간다.
+"""씬 0-e. 좌: 나침반 (공이 선 자리에서 방향마다 손실이 얼마나 변하나)  /  우: 손실 지형 위를 굴러가는 공.
+
+나침반 둘레 = 360° 모든 방향. 초록 = 내려감, 빨강 = 올라감. 바늘 = 가장 빨리 내려가는 방향 (경사가 셀수록 길다).
+편미분 두 개(w1 몫, w2 몫)면 모든 방향을 계산할 수 있다 → 바늘 방향으로 한 걸음씩 → 바닥에선 나침반이 회색.
 출발점이 다르면 다른 골짜기에 멈출 수 있다.
 
 렌더: ./render.sh s00e_ball BallDescent
@@ -16,12 +18,16 @@ from common.style import ACCENT, BG, FG, LORA, MUTED, NEG, POS, t
 
 THETA = -55 * DEGREES
 PHI = 62 * DEGREES
-ZOOM = 0.7
-SHIFT = 3.35         # 화면 오른쪽으로 보낼 거리 (화면 단위)
+ZOOM = 0.72
+SHIFT = 3.0
 LR = 0.25
 YCOL = "#B48CFF"
 START1 = (2.5, 1.9)
 START2 = (-2.4, 2.5)
+N_ARC = 48
+C_CENTER = LEFT * 3.75 + DOWN * 0.05
+R = 1.55
+GRAY = "#3A3F4B"
 
 
 def L(x, y):
@@ -33,6 +39,9 @@ def grad(x, y, h=1e-4):
     return np.array([(L(x + h, y) - L(x - h, y)) / (2 * h), (L(x, y + h) - L(x, y - h)) / (2 * h)])
 
 
+G_REF = float(np.linalg.norm(grad(*START1)))
+
+
 def path_from(start, n):
     p = np.array(start, float)
     out = [p.copy()]
@@ -40,6 +49,25 @@ def path_from(start, n):
         p = p - LR * grad(*p)
         out.append(p.copy())
     return out
+
+
+def arc_color(g, k):
+    a = (k + 0.5) * TAU / N_ARC
+    s = (g[0] * np.cos(a) + g[1] * np.sin(a)) / G_REF
+    s = float(np.clip(s, -1, 1))
+    return interpolate_color(ManimColor(GRAY), ManimColor(LORA if s < 0 else NEG), min(1.0, abs(s) * 1.15))
+
+
+def needle_for(g):
+    v = -g / G_REF
+    n = np.linalg.norm(v)
+    if n < 1e-6:
+        v, n = np.array([1e-3, 0.0]), 1e-3
+    length = float(np.clip(n, 0.1, 1.0)) * R * 0.9
+    d = v / n
+    end = C_CENTER + length * np.array([d[0], d[1], 0])
+    return Arrow(C_CENTER, end, buff=0, color=LORA, stroke_width=7, max_tip_length_to_length_ratio=0.3,
+                 max_stroke_width_to_length_ratio=12)
 
 
 class BallDescent(ThreeDScene):
@@ -73,163 +101,164 @@ class BallDescent(ThreeDScene):
                             axis_config=dict(stroke_color="#3A3F4B")).move_to(ax.c2p(0, 0, 0))
         lw1 = MathTex("w_1", font_size=36).move_to(ax.c2p(3.5, 0, 0))
         lw2 = MathTex("w_2", font_size=36).move_to(ax.c2p(0, 3.5, 0))
-        lL = MathTex("L", font_size=36).move_to(ax.c2p(-0.3, 0, 4.7))
-        self.add_fixed_orientation_mobjects(lw1, lw2, lL)
-        self.remove(lw1, lw2, lL)
+        self.add_fixed_orientation_mobjects(lw1, lw2)
+        self.remove(lw1, lw2)
+        right_t = self.fixed(t("손실 지형", 24, ACCENT).move_to(RIGHT * 3.4 + UP * 2.85))
 
-        # ---------- 왼쪽: 가중치 평면 ----------
-        plane = NumberPlane(x_range=[-3, 3, 1], y_range=[-3, 3, 1], x_length=5.0, y_length=5.0,
-                            background_line_style=dict(stroke_color="#2A3446", stroke_width=1.2),
-                            axis_config=dict(stroke_color=MUTED)).move_to(LEFT * 3.7 + DOWN * 0.35)
-        pw1 = MathTex("w_1", font_size=32).next_to(plane, RIGHT, buff=0.1).shift(DOWN * 0.05)
-        pw2 = MathTex("w_2", font_size=32).next_to(plane.c2p(0, 3), UP, buff=0.08)
-        left_t = t("가중치 (w₁, w₂)", 24, POS).next_to(plane, UP, buff=0.35).align_to(plane, LEFT)
-        right_t = t("손실 L(w₁, w₂)", 24, ACCENT).move_to(RIGHT * 3.6 + UP * 2.85)
-        left = VGroup(plane, pw1, pw2, left_t, right_t)
-        self.fixed(left)
+        # ---------- 왼쪽: 나침반 ----------
+        arcs = VGroup(*[Arc(radius=R, start_angle=k * TAU / N_ARC + 0.01, angle=TAU / N_ARC - 0.02,
+                            arc_center=C_CENTER, stroke_width=18, color=GRAY) for k in range(N_ARC)])
+        cross = VGroup(DashedLine(C_CENTER + LEFT * R * 0.85, C_CENTER + RIGHT * R * 0.85, stroke_width=1, color=GRAY),
+                       DashedLine(C_CENTER + DOWN * R * 0.85, C_CENTER + UP * R * 0.85, stroke_width=1, color=GRAY))
+        hub = Dot(C_CENTER, radius=0.07, color=FG)
+        dirs = VGroup(
+            t("w₁ 늘리기", 20, MUTED).next_to(C_CENTER + RIGHT * R, RIGHT, buff=0.22),
+            t("w₁ 줄이기", 20, MUTED).next_to(C_CENTER + LEFT * R, LEFT, buff=0.22),
+            t("w₂ 늘리기", 20, MUTED).next_to(C_CENTER + UP * R, UP, buff=0.22),
+            t("w₂ 줄이기", 20, MUTED).next_to(C_CENTER + DOWN * R, DOWN, buff=0.22),
+        )
+        left_t = t("나침반: 이 자리에서 어느 쪽이 내리막?", 22, FG).move_to(C_CENTER + UP * (R + 0.9))
+        legend = t("초록 = 내려감   빨강 = 올라감", 18, MUTED).move_to(C_CENTER + DOWN * (R + 0.8))
+        SLOT = C_CENTER + DOWN * (R + 1.35)
+        compass = VGroup(cross, arcs, hub, dirs, left_t, legend)
+        self.fixed(compass)
 
         px, py = ValueTracker(START1[0]), ValueTracker(START1[1])
+        qx, qy = ValueTracker(START2[0]), ValueTracker(START2[1])
+        src = {"t": (px, py)}
 
-        dot = Dot(radius=0.1, color=ACCENT)
-        dot.add_updater(lambda m: m.move_to(plane.c2p(px.get_value(), py.get_value())))
-        self.fixed(dot)
+        def cur_grad():
+            a, b = src["t"]
+            return grad(a.get_value(), b.get_value())
+
+        def bind_arcs():
+            for k, arc in enumerate(arcs):
+                arc.add_updater(lambda m, k=k: m.set_stroke(color=arc_color(cur_grad(), k)))
+
+        needle = self.fixed(needle_for(grad(*START1)))
+
         ball = Dot3D(radius=0.13, color=ACCENT)
         ball.add_updater(lambda m: m.move_to(ax.c2p(px.get_value(), py.get_value(), L(px.get_value(), py.get_value()) + 0.06)))
         drop = always_redraw(lambda: DashedLine(ax.c2p(px.get_value(), py.get_value(), 0),
                                                 ax.c2p(px.get_value(), py.get_value(), L(px.get_value(), py.get_value())),
                                                 color=ACCENT, stroke_width=2, dash_length=0.08))
-        shadow = Dot(radius=0.06, color=ACCENT)
-        shadow.add_updater(lambda m: m.move_to(ax.c2p(px.get_value(), py.get_value(), 0)))
 
         lossbox = self.fixed(VGroup(t("손실", 20, MUTED), t("0.00", 32, ACCENT)).arrange(RIGHT, buff=0.2)
                              .to_corner(DR, buff=0.4))
 
-        def loss_text(col=ACCENT):
-            v = L(px.get_value(), py.get_value())
-            return t(f"{v:.2f}", 32, col).move_to(lossbox[1])
+        def loss_text():
+            return t(f"{L(px.get_value(), py.get_value()):.2f}", 32, ACCENT).move_to(lossbox[1])
 
-        # ================= 1) 두 화면 =================
-        c = self.cap("가중치 2개의 손실을, 지형으로 그리면")
-        self.play(FadeIn(c), FadeIn(left))
+        # ================= 1) 지형과 공 =================
+        c = self.cap("가중치에 따라 손실이 달라진다  →  손실 지형")
+        self.play(FadeIn(c), FadeIn(right_t))
         self.play(Create(floor), Create(surf), FadeIn(lw1), FadeIn(lw2), run_time=2.0)
-        self.add(dot, ball, drop, shadow)
-        self.play(FadeIn(dot), FadeIn(ball), FadeIn(lossbox))
+        self.add(ball, drop)
+        self.play(FadeIn(ball), FadeIn(lossbox))
         self.play(Transform(lossbox[1], loss_text()))
-        self.wait(0.4)
+        c = self.swap(c, self.cap("공 = 지금 가중치에서의 손실.  목표: 가장 낮은 곳"))
+        self.wait(1.0)
 
-        # ================= 2) 연동 =================
-        c = self.swap(c, self.cap("왼쪽 점 = 가중치 값,   오른쪽 공 = 그때의 손실"))
-        lossbox[1].add_updater(lambda m: m.become(loss_text()))
-        for tx, ty in [(0.2, 2.4), (-1.6, 0.4), (0.6, -1.8), START1]:
-            self.play(px.animate.set_value(tx), py.animate.set_value(ty), run_time=1.0)
+        # ================= 2) 나침반 =================
+        c = self.swap(c, self.cap("공이 선 자리에서, 방향마다 손실이 얼마나 변할까?"))
+        self.play(FadeIn(compass))
         self.wait(0.4)
-
-        # ================= 3) 어느 방향으로? =================
-        c = self.swap(c, self.cap("어느 방향으로 가면 손실이 가장 빨리 줄어들까?"))
-        x0, y0 = START1
-        g0 = grad(x0, y0)
-        center = plane.c2p(x0, y0)
-        arrows = VGroup()
-        for k in range(8):
-            a = k * TAU / 8
-            dvec = np.array([np.cos(a), np.sin(a)])
-            arrows.add(Arrow(center, center + 0.8 * np.array([dvec[0], dvec[1], 0]), buff=0.12,
-                             color=MUTED, stroke_width=4, max_tip_length_to_length_ratio=0.3))
-        self.fixed(arrows)
-        self.play(LaggedStart(*[GrowArrow(a) for a in arrows], lag_ratio=0.08))
+        g0 = grad(*START1)
+        self.play(LaggedStart(*[arc.animate.set_stroke(color=arc_color(g0, k)) for k, arc in enumerate(arcs)],
+                             lag_ratio=0.03), run_time=1.8)
         self.wait(0.6)
 
         # 편미분 두 개
-        c = self.swap(c, self.cap("편미분 두 개로 계산할 수 있다", ACCENT))
-        pd = self.fixed(VGroup(
-            MathTex(r"\frac{\partial L}{\partial w_1} = " + f"{g0[0]:.2f}", font_size=34, color=ACCENT),
-            MathTex(r"\frac{\partial L}{\partial w_2} = " + f"{g0[1]:.2f}", font_size=34, color=YCOL),
-        ).arrange(DOWN, buff=0.2, aligned_edge=LEFT).move_to(plane.c2p(-1.7, 1.9)))
-        bg = self.fixed(BackgroundRectangle(pd, color=BG, fill_opacity=0.85, buff=0.12))
-        self.play(FadeIn(bg), FadeIn(pd))
-        self.wait(0.6)
+        c = self.swap(c, self.cap("편미분 두 개만 알면, 모든 방향을 계산할 수 있다", ACCENT))
+        pd = self.fixed(MathTex(r"\frac{\partial L}{\partial w_1} = " + f"{g0[0]:.2f}", r"\qquad",
+                                r"\frac{\partial L}{\partial w_2} = " + f"{g0[1]:.2f}", font_size=30).move_to(SLOT))
+        pd[0].set_color(ACCENT)
+        pd[2].set_color(YCOL)
+        self.play(FadeIn(pd[0]), arcs[0].animate.set_stroke(width=30), arcs[-1].animate.set_stroke(width=30))
+        self.play(arcs[0].animate.set_stroke(width=18), arcs[-1].animate.set_stroke(width=18), run_time=0.4)
+        q = N_ARC // 4
+        self.play(FadeIn(pd[2]), arcs[q].animate.set_stroke(width=30), arcs[q - 1].animate.set_stroke(width=30))
+        self.play(arcs[q].animate.set_stroke(width=18), arcs[q - 1].animate.set_stroke(width=18), run_time=0.4)
+        c = self.swap(c, self.cap("어느 방향이든  =  w₁ 몫 + w₂ 몫", ACCENT))
+        self.wait(1.0)
 
-        # 8방향 각각 얼마나 변하나 → 색
-        slopes = []
-        for k in range(8):
-            a = k * TAU / 8
-            slopes.append(g0[0] * np.cos(a) + g0[1] * np.sin(a))
-        smax = max(abs(s) for s in slopes)
-        c = self.swap(c, self.cap("방향마다 변화량 = w₁ 몫 + w₂ 몫  (초록: 내려감, 빨강: 올라감)"))
-        self.play(*[arrows[k].animate.set_color(interpolate_color(ManimColor(BG), ManimColor(LORA if s < 0 else NEG),
-                                                                   0.35 + 0.65 * abs(s) / smax))
-                    for k, s in enumerate(slopes)], run_time=1.0)
-        self.wait(0.8)
+        # 바늘
+        c = self.swap(c, self.cap("가장 진한 초록  =  가장 빨리 내려가는 방향", LORA))
+        self.play(GrowArrow(needle))
+        name = self.fixed(t("바늘 = 두 편미분을 모아 반대로 (기울기의 반대)", 20, LORA).move_to(SLOT))
+        self.play(FadeOut(pd), FadeIn(name))
+        self.wait(1.2)
 
-        dn = -g0 / np.linalg.norm(g0)
-        best = Arrow(center, center + 1.35 * np.array([dn[0], dn[1], 0]), buff=0.12, color=LORA, stroke_width=8,
-                     max_tip_length_to_length_ratio=0.25)
-        self.fixed(best)
-        c = self.swap(c, self.cap("두 편미분을 모아 반대로  →  가장 빨리 내려가는 방향", LORA))
-        self.play(GrowArrow(best), arrows.animate.set_opacity(0.25))
-        name = self.fixed(t("(두 편미분을 모은 화살표 = 기울기,  그 반대로 간다)", 20, MUTED)
-                          .next_to(plane, DOWN, buff=0.15))
-        self.play(FadeIn(name))
-        self.wait(1.4)
-        self.play(FadeOut(arrows), FadeOut(best), FadeOut(pd), FadeOut(bg), FadeOut(name))
+        # 실시간 연동
+        bind_arcs()
+        needle.add_updater(lambda m: m.become(needle_for(cur_grad())))
+        lossbox[1].add_updater(lambda m: m.become(loss_text()))
+        c = self.swap(c, self.cap("공이 움직이면 나침반도 바뀐다"))
+        for tx, ty in [(0.4, 2.3), (-1.0, -0.3), START1]:
+            self.play(px.animate.set_value(tx), py.animate.set_value(ty), run_time=1.1)
+        self.play(FadeOut(name))
 
-        # ================= 4) 굴러 내려가기 =================
-        c = self.swap(c, self.cap("그 방향으로 한 걸음  →  다시 편미분  →  또 한 걸음"))
+        # ================= 3) 굴러 내려가기 =================
+        c = self.swap(c, self.cap("바늘 방향으로 한 걸음  →  다시 재고  →  또 한 걸음"))
         P1 = path_from(START1, 24)
-        trail2d = VMobject(stroke_color=ACCENT, stroke_width=3)
-        trail2d.set_points_as_corners([plane.c2p(*P1[0]), plane.c2p(*P1[0])])
-        self.fixed(trail2d)
-        self.add(trail2d)
-        trail3d = VGroup()
-        self.add(trail3d)
+        note = None
         for k in range(1, len(P1)):
             a, b = P1[k - 1], P1[k]
-            seg2 = Line(plane.c2p(*a), plane.c2p(*b), color=ACCENT, stroke_width=3)
-            self.fixed(seg2)
             seg3 = Line(ax.c2p(a[0], a[1], L(*a) + 0.04), ax.c2p(b[0], b[1], L(*b) + 0.04), color=ACCENT, stroke_width=4)
-            rt = 0.45 if k < 6 else (0.3 if k < 14 else 0.18)
-            self.play(px.animate.set_value(b[0]), py.animate.set_value(b[1]), FadeIn(seg2), Create(seg3), run_time=rt)
-            trail3d.add(seg3)
-            if k == 8:
-                note = self.fixed(t("바닥에 가까울수록 경사가 완만  →  걸음이 저절로 작아진다", 22, MUTED).to_edge(DOWN, buff=0.35))
+            shd = Line(ax.c2p(a[0], a[1], 0), ax.c2p(b[0], b[1], 0), color=ACCENT, stroke_width=2, stroke_opacity=0.5)
+            rt = 0.5 if k < 6 else (0.32 if k < 14 else 0.2)
+            self.play(px.animate.set_value(b[0]), py.animate.set_value(b[1]), Create(seg3), Create(shd), run_time=rt)
+            if k == 7:
+                note = self.fixed(t("경사가 약해질수록 바늘이 짧아진다  →  걸음도 작아진다", 20, MUTED).move_to(SLOT))
                 self.play(FadeIn(note), run_time=0.4)
-        self.wait(0.8)
+        c = self.swap(c, self.cap("바닥: 어느 쪽으로 가도 거의 안 변한다  →  멈춘다", LORA))
         self.play(FadeOut(note))
+        self.wait(1.2)
 
-        # ================= 5) 다른 출발점 =================
+        # ================= 4) 다른 출발점 =================
+        for arc in arcs:
+            arc.clear_updaters()
+        needle.clear_updaters()
         lossbox[1].clear_updaters()
-        first_loss = L(*P1[-1])
-        keep = self.fixed(t(f"첫 번째 공: 손실 {first_loss:.2f}", 22, ACCENT).next_to(lossbox, UP, buff=0.2).align_to(lossbox, RIGHT))
-        self.play(FadeIn(keep))
+        first = L(*P1[-1])
+        keep = self.fixed(t(f"첫 번째 공: 손실 {first:.2f}", 22, ACCENT).next_to(lossbox, UP, buff=0.2).align_to(lossbox, RIGHT))
+        self.play(FadeIn(keep), FadeOut(lossbox))
         c = self.swap(c, self.cap("출발점이 다르면?"))
-        qx, qy = ValueTracker(START2[0]), ValueTracker(START2[1])
-        dot2 = Dot(radius=0.1, color=POS)
-        dot2.add_updater(lambda m: m.move_to(plane.c2p(qx.get_value(), qy.get_value())))
-        self.fixed(dot2)
+        src["t"] = (qx, qy)
         ball2 = Dot3D(radius=0.13, color=POS)
         ball2.add_updater(lambda m: m.move_to(ax.c2p(qx.get_value(), qy.get_value(), L(qx.get_value(), qy.get_value()) + 0.06)))
-        lossbox2 = self.fixed(VGroup(t("두 번째 공: 손실", 22, POS), t(f"{L(*START2):.2f}", 26, POS)).arrange(RIGHT, buff=0.15)
-                              .next_to(keep, UP, buff=0.15).align_to(lossbox, RIGHT))
-        self.add(dot2, ball2)
-        self.play(FadeIn(dot2), FadeIn(ball2), FadeIn(lossbox2))
+        lb2 = self.fixed(VGroup(t("두 번째 공: 손실", 22, POS), t(f"{L(*START2):.2f}", 26, POS)).arrange(RIGHT, buff=0.15)
+                         .next_to(keep, UP, buff=0.15).align_to(keep, RIGHT))
+        self.add(ball2)
+        g2 = grad(*START2)
+        self.play(FadeIn(ball2), FadeIn(lb2),
+                  *[arc.animate.set_stroke(color=arc_color(g2, k)) for k, arc in enumerate(arcs)],
+                  needle.animate.become(needle_for(g2)))
+        bind_arcs()
+        needle.add_updater(lambda m: m.become(needle_for(cur_grad())))
         P2 = path_from(START2, 18)
         for k in range(1, len(P2)):
             a, b = P2[k - 1], P2[k]
-            seg2 = Line(plane.c2p(*a), plane.c2p(*b), color=POS, stroke_width=3)
-            self.fixed(seg2)
             seg3 = Line(ax.c2p(a[0], a[1], L(*a) + 0.04), ax.c2p(b[0], b[1], L(*b) + 0.04), color=POS, stroke_width=4)
-            self.play(qx.animate.set_value(b[0]), qy.animate.set_value(b[1]), FadeIn(seg2), Create(seg3),
-                      Transform(lossbox2[1], t(f"{L(*b):.2f}", 26, POS).move_to(lossbox2[1])),
-                      run_time=0.4 if k < 5 else 0.2)
-        c = self.swap(c, self.cap("더 깊은 골짜기가 있어도, 근처 골짜기에 멈출 수 있다 (지역 최솟값)", POS))
+            shd = Line(ax.c2p(a[0], a[1], 0), ax.c2p(b[0], b[1], 0), color=POS, stroke_width=2, stroke_opacity=0.5)
+            self.play(qx.animate.set_value(b[0]), qy.animate.set_value(b[1]), Create(seg3), Create(shd),
+                      Transform(lb2[1], t(f"{L(*b):.2f}", 26, POS).move_to(lb2[1])), run_time=0.4 if k < 5 else 0.2)
+        c = self.swap(c, self.cap("더 낮은 곳이 있어도, 근처 골짜기에 멈출 수 있다", POS))
+        sub = self.fixed(t("(지역 최솟값)", 22, POS).next_to(c, DOWN, buff=0.1))
+        self.play(FadeIn(sub))
         self.wait(1.8)
 
-        # ================= 6) 마무리 =================
-        end = self.fixed(VGroup(
+        # ================= 5) 마무리 =================
+        for arc in arcs:
+            arc.clear_updaters()
+        needle.clear_updaters()
+        self.play(FadeOut(keep), FadeOut(lb2), FadeOut(sub))
+        end = VGroup(
             t("가중치가 70억 개여도 똑같다", 30, FG),
-            t("편미분 70억 개  →  모아서 반대로  →  한 걸음", 28, LORA),
-        ).arrange(DOWN, buff=0.15))
-        ebg = self.fixed(BackgroundRectangle(end, color=BG, fill_opacity=0.9, buff=0.25))
-        VGroup(ebg, end).to_edge(DOWN, buff=0.3)
-        self.play(FadeIn(ebg), FadeIn(end, shift=UP * 0.1))
+            t("편미분 70억 개로 나침반을 만들고  →  바늘 방향으로 한 걸음", 26, LORA),
+        ).arrange(DOWN, buff=0.15)
+        ebg = BackgroundRectangle(end, color=BG, fill_opacity=0.9, buff=0.25)
+        grp = VGroup(ebg, end).to_edge(DOWN, buff=0.3)
+        self.fixed(grp)
+        self.play(FadeIn(grp, shift=UP * 0.1))
         self.wait(2.6)

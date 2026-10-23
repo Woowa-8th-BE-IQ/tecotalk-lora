@@ -329,7 +329,7 @@ class PartialDerivative(ThreeDScene):
             self.play(FadeIn(r, shift=RIGHT * 0.2), run_time=0.7)
         end = self.fixed(VGroup(
             t("방향별 델타 70억 개를 모은 것 = 기울기", 32, LORA),
-            t("그걸 한 번에 구하는 방법 = 역전파", 28, FG),
+            t("70억 개도 컴퓨터가 한 번에 계산해 준다", 28, FG),
         ).arrange(DOWN, buff=0.2).to_edge(DOWN, buff=0.6))
         self.play(FadeIn(end, shift=UP * 0.15))
         self.wait(3.0)

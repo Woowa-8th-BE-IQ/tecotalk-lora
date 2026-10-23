@@ -59,7 +59,7 @@ class Outro(Scene):
             ("무엇을", "LoRA: 원본은 얼리고 B·A만 학습", LORA),
             ("얼마나", "r = 표현력, α = 볼륨", LORA),
             ("어떻게", "학습률 = 보폭, AdamW = 방향별 보폭", ACCENT),
-            ("구분", "활성 파라미터 = 추론,  LoRA = 학습", POS),
+            ("결과", "메모리 약 3배↓,  저장 크기 약 1만 배↓", POS),
         ]
         rows = VGroup()
         for k, (q, a, col) in enumerate(items):

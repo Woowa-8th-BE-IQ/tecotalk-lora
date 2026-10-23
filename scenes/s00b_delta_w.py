@@ -88,7 +88,7 @@ class DeltaW(Scene):
         self.clear_except(c)
 
         # ================= 3) 차원 확장 =================
-        c = self.swap(c, cap("입력이 4096개라면?"))
+        c = self.swap(c, cap("가중치가 4096개라면?  (높이 z = 손실 L)"))
         map1 = VGroup(
             MathTex(r"z", r"\ \longrightarrow\ ", r"L", font_size=48),
             MathTex(r"(x,\ y)", r"\ \longrightarrow\ ", r"(w_1,\ w_2,\ \dots,\ w_{4096})", font_size=48),
@@ -122,135 +122,56 @@ class DeltaW(Scene):
         pick[2].set_color(ACCENT)
         pick.next_to(same, DOWN, buff=0.6)
         self.play(FadeOut(same), Write(pick))
-        then = MathTex(r"\Rightarrow\ \Delta L \approx -\eta \sum_i \left(\frac{\partial L}{\partial w_i}\right)^2 < 0",
-                       font_size=42).next_to(pick, DOWN, buff=0.4)
-        self.play(Write(then))
-        c = self.swap(c, cap("기울기 반대로 고르면 손실은 반드시 줄어든다", LORA))
+        then = t("편미분 수천, 수십억 개도 컴퓨터가 한 번에 계산해 준다", 26, MUTED).next_to(pick, DOWN, buff=0.45)
+        self.play(FadeIn(then))
+        c = self.swap(c, cap("기울기 반대로 걸으면 손실이 줄어든다", LORA))
         self.wait(1.8)
         self.clear_except(c)
 
-        # ================= 4) 왜 행렬인가 =================
-        c = self.swap(c, cap("그런데 신경망에서 w들은 어떻게 생겼나?"))
-        xs = VGroup(*[Circle(0.28, color=POS, stroke_width=3).set_fill(BG, 1) for _ in range(3)]).arrange(DOWN, buff=0.55)
-        hs = VGroup(*[Circle(0.28, color=ACCENT, stroke_width=3).set_fill(BG, 1) for _ in range(2)]).arrange(DOWN, buff=0.9)
-        xs.move_to(LEFT * 4.6 + DOWN * 0.3)
-        hs.move_to(LEFT * 1.4 + DOWN * 0.3)
-        xl = VGroup(*[MathTex(f"x_{j+1}", font_size=30).move_to(xs[j]) for j in range(3)])
-        hl = VGroup(*[MathTex(f"h_{i+1}", font_size=30).move_to(hs[i]) for i in range(2)])
-        edges = VGroup()
-        for i in range(2):
-            for j in range(3):
-                edges.add(Line(xs[j].get_center(), hs[i].get_center(), buff=0.3, stroke_color=MUTED, stroke_width=2.5))
-        self.play(FadeIn(xs), FadeIn(xl), FadeIn(hs), FadeIn(hl))
-        self.play(LaggedStart(*[Create(e) for e in edges], lag_ratio=0.12), run_time=1.2)
-        allc = t("모든 입력이 모든 출력에 연결된다  →  선 6개 = 숫자 6개", 26, MUTED).to_edge(DOWN, buff=0.5)
-        self.play(FadeIn(allc))
-
-        # 선 → 행렬 칸
-        grid = VGroup(*[Square(0.8, stroke_color="#3A3F4B", stroke_width=1.5) for _ in range(6)]).arrange_in_grid(2, 3, buff=0)
-        grid.move_to(RIGHT * 3.4 + DOWN * 0.3)
-        wl = VGroup(*[MathTex(f"w_{{{i+1}{j+1}}}", font_size=30).move_to(grid[i * 3 + j]) for i in range(2) for j in range(3)])
-        rows_l = t("출력 2", 22, ACCENT).next_to(grid, LEFT, buff=0.25)
-        cols_l = t("입력 3", 22, POS).next_to(grid, UP, buff=0.2)
-        W_lab = MathTex("W", font_size=44).next_to(grid, DOWN, buff=0.3)
-        c = self.swap(c, cap("입력 j → 출력 i 선의 숫자를  i행 j열에 놓으면 = 행렬"))
-        self.play(Create(grid), FadeIn(rows_l), FadeIn(cols_l))
-        for k in range(6):
-            self.play(Indicate(edges[k], color=LORA, scale_factor=1.0),
-                      TransformFromCopy(edges[k], wl[k]), run_time=0.45)
+        # ================= 4) 가중치는 표(행렬)로 저장된다 =================
+        c = self.swap(c, cap("그런데 LLM의 가중치 w들은 어떻게 저장돼 있을까?"))
+        grid = VGroup(*[Square(0.9, stroke_color="#3A3F4B", stroke_width=1.5) for _ in range(9)]).arrange_in_grid(3, 3, buff=0)
+        grid.move_to(DOWN * 0.3)
+        wl = VGroup(*[MathTex(f"w_{{{i+1}{j+1}}}", font_size=32).move_to(grid[i * 3 + j]) for i in range(3) for j in range(3)])
+        self.play(Create(grid), LaggedStart(*[FadeIn(w) for w in wl], lag_ratio=0.08), run_time=1.2)
+        W_lab = MathTex("W", font_size=48).next_to(grid, DOWN, buff=0.3)
+        c = self.swap(c, cap("숫자들이 줄과 칸으로 묶인 큰 표  =  행렬 W"))
         self.play(FadeIn(W_lab))
-        hx = MathTex(r"h = W x", font_size=48).next_to(W_lab, DOWN, buff=0.25)
-        self.play(FadeOut(allc), Write(hx))
         self.wait(0.8)
-        sameW = t("그래서 ΔW도 같은 모양의 행렬. 실제로는 4096 × 4096", 26, LORA).to_edge(DOWN, buff=0.45)
-        self.play(FadeIn(sameW))
-        self.wait(1.6)
+        dgrid = grid.copy().set_stroke(LORA, 2)
+        dl = VGroup(*[MathTex(r"\Delta w_{" + f"{i+1}{j+1}" + "}", font_size=28, color=LORA).move_to(grid[i * 3 + j])
+                      for i in range(3) for j in range(3)])
+        c = self.swap(c, cap("그래서 고칠 양 ΔW 도 같은 모양의 표", LORA))
+        self.play(Transform(grid, dgrid), Transform(wl, dl),
+                  Transform(W_lab, MathTex(r"\Delta W", font_size=48, color=LORA).move_to(W_lab)))
+        self.wait(1.4)
         self.clear_except(c)
 
-        # ================= 5) 층이 쌓이면: 연쇄법칙 =================
-        c = self.swap(c, cap("층이 쌓이면?  W₁은 L에 직접 닿지 않는다"))
+        # ================= 5) 실제 크기 =================
+        c = self.swap(c, cap("실제 크기는?  (Llama-2 7B 기준)"))
+        big = Square(3.0, stroke_color=MUTED, stroke_width=2).set_fill(LORA, 0.12).move_to(LEFT * 3.6 + UP * 0.1)
+        lines = VGroup(*[Line(big.get_corner(UL) + RIGHT * 3.0 * k / 16, big.get_corner(DL) + RIGHT * 3.0 * k / 16,
+                              stroke_width=0.5, stroke_color="#2A2E38") for k in range(1, 16)],
+                       *[Line(big.get_corner(UL) + DOWN * 3.0 * k / 16, big.get_corner(UR) + DOWN * 3.0 * k / 16,
+                              stroke_width=0.5, stroke_color="#2A2E38") for k in range(1, 16)])
+        dlab = MathTex(r"\Delta W", font_size=40, color=LORA).next_to(big, UP, buff=0.15)
+        dim = t("4096 × 4096", 26, FG).next_to(big, DOWN, buff=0.2)
+        cnt = t("= 약 1,677만 칸", 26, ACCENT).next_to(dim, DOWN, buff=0.1)
+        self.play(FadeIn(big), Create(lines, lag_ratio=0.01), FadeIn(dlab), FadeIn(dim), FadeIn(cnt), run_time=1.2)
+        calc = VGroup(
+            t("층 하나에 이런 행렬 7개", 28, FG),
+            t("Attention 4개 + FFN 3개", 22, MUTED),
+            t("× 32층  + 임베딩", 28, FG),
+            t("≈ 70억 칸", 40, ACCENT),
+        ).arrange(DOWN, buff=0.25, aligned_edge=LEFT).move_to(RIGHT * 2.8 + DOWN * 0.1)
+        for it in calc:
+            self.play(FadeIn(it, shift=RIGHT * 0.15), run_time=0.5)
+        self.wait(0.8)
+        burden = t("ΔW 70억 칸 전부  →  기울기, 옵티마이저 기록까지 함께 들고 있어야 한다", 24, MUTED).to_edge(DOWN, buff=0.35)
+        self.play(FadeIn(burden))
+        self.wait(1.4)
 
-        def node(lbl, col, w=1.1):
-            r = RoundedRectangle(corner_radius=0.12, width=w, height=0.8, stroke_color=col, stroke_width=2.5).set_fill(col, 0.12)
-            return VGroup(r, MathTex(lbl, font_size=38).move_to(r))
-
-        nx, nh, ny, nL = node("x", POS), node("h", FG), node(r"\hat y", FG), node("L", NEG)
-        chain = VGroup(nx, nh, ny, nL).arrange(RIGHT, buff=2.0).shift(UP * 0.8)
-        fw = VGroup(*[Arrow(chain[k].get_right(), chain[k + 1].get_left(), buff=0.1, color=POS, stroke_width=3)
-                      for k in range(3)])
-        w1 = MathTex("W_1", font_size=36, color=ACCENT).next_to(fw[0], UP, buff=0.15)
-        w2 = MathTex("W_2", font_size=36, color=ACCENT).next_to(fw[1], UP, buff=0.15)
-        self.play(FadeIn(chain), Create(fw), FadeIn(w1), FadeIn(w2))
-        self.wait(0.5)
-
-        bw = VGroup(*[CurvedArrow(chain[k + 1].get_bottom() + DOWN * 0.1, chain[k].get_bottom() + DOWN * 0.1,
-                                  angle=-TAU / 6, color=TAN, stroke_width=3) for k in (2, 1, 0)])
-        dlab = [MathTex(r"\delta_{\hat y} = \frac{\partial L}{\partial \hat y}", font_size=30, color=TAN),
-                MathTex(r"\delta_h = W_2^{\top}\,\delta_{\hat y}", font_size=30, color=TAN)]
-        dlab[0].next_to(bw[0], DOWN, buff=0.1)
-        dlab[1].next_to(bw[1], DOWN, buff=0.1)
-        c = self.swap(c, cap("뒤에서부터 신호 δ 를 넘겨받는다  =  연쇄법칙", TAN))
-        self.play(Create(bw[0]), FadeIn(dlab[0]))
-        self.play(Create(bw[1]), FadeIn(dlab[1]))
-        self.wait(0.6)
-
-        grads = VGroup(
-            MathTex(r"\frac{\partial L}{\partial W_2}", "=", r"\delta_{\hat y}", r"\cdot", r"h^{\top}", font_size=42),
-            MathTex(r"\frac{\partial L}{\partial W_1}", "=", r"\delta_h", r"\cdot", r"x^{\top}", font_size=42),
-        ).arrange(RIGHT, buff=1.2).to_edge(DOWN, buff=0.6)
-        for g in grads:
-            g[0].set_color(ACCENT)
-            g[2].set_color(TAN)
-            g[4].set_color(POS)
-        self.play(Write(grads[0]))
-        self.play(Write(grads[1]))
-        rule = t("모든 층의 공식이 같다:  뒤에서 온 신호 × 앞에서 온 입력", 26, FG).next_to(grads, UP, buff=0.35)
-        self.play(FadeIn(rule))
-        self.wait(2.0)
-        self.clear_except(c)
-
-        # ================= 6) 신호 열 × 입력 행 = 기울기 행렬 =================
-        c = self.swap(c, cap("숫자로: 뒤 신호 열 × 앞 입력 행"))
-        d_vals, x_vals = [-2, 1], [1, 2, 3]
-        dcol = VGroup(*[num_cell(v, color=TAN) for v in d_vals]).arrange(DOWN, buff=0)
-        xrow = VGroup(*[num_cell(v, color=POS) for v in x_vals]).arrange(RIGHT, buff=0)
-        G = VGroup(*[num_cell(0, color=None) for _ in range(6)]).arrange_in_grid(2, 3, buff=0)
-        for cell in G:
-            cell[1].set_opacity(0)
-        G.move_to(RIGHT * 1.2 + DOWN * 0.6)
-        dcol.next_to(G, LEFT, buff=0.5)
-        xrow.next_to(G, UP, buff=0.4)
-        dl = MathTex(r"\delta", font_size=36, color=TAN).next_to(dcol, LEFT, buff=0.25)
-        xl2 = MathTex(r"x^{\top}", font_size=36, color=POS).next_to(xrow, RIGHT, buff=0.25)
-        gl = MathTex(r"\frac{\partial L}{\partial W}", font_size=36, color=ACCENT).next_to(G, RIGHT, buff=0.4)
-        self.play(FadeIn(dcol), FadeIn(dl), FadeIn(xrow), FadeIn(xl2), Create(G))
-        for i in range(2):
-            for j in range(3):
-                v = d_vals[i] * x_vals[j]
-                newc = num_cell(v, color=ACCENT).move_to(G[i * 3 + j])
-                self.play(Indicate(dcol[i], color=TAN, scale_factor=1.08),
-                          Indicate(xrow[j], color=POS, scale_factor=1.08),
-                          Transform(G[i * 3 + j], newc), run_time=0.45)
-        self.play(FadeIn(gl))
-        note = t("입력 j → 출력 i 선의 기울기 = (끝 쪽 신호 δᵢ) × (시작 쪽 입력 xⱼ)", 26, MUTED).to_edge(DOWN, buff=0.9)
-        self.play(FadeIn(note))
-        self.wait(1.2)
-
-        dW = MathTex(r"\Delta W", "=", r"-\eta", r"\cdot", r"\delta", r"\cdot", r"x^{\top}", font_size=46).to_edge(DOWN, buff=0.4)
-        dW[0].set_color(LORA)
-        dW[4].set_color(TAN)
-        dW[6].set_color(POS)
-        self.play(FadeOut(note), Write(dW))
-        self.wait(1.0)
-
-        # ================= 7) LoRA 로 가는 다리 =================
-        c = self.swap(c, cap("열 하나 × 행 하나  →  rank 1 행렬", LORA))
-        bl = t("B", 34, LORA, weight="BOLD").next_to(dcol, DOWN, buff=0.25)
-        al = t("A", 34, LORA, weight="BOLD").next_to(xrow, UP, buff=0.2)
-        self.play(dcol.animate.set_stroke(LORA, 3), xrow.animate.set_stroke(LORA, 3), FadeIn(bl), FadeIn(al))
-        hint = VGroup(
-            t("LoRA의 B × A 와 같은 모양", 30, LORA),
-            t("기울기 업데이트는 원래 몇 개 방향에 몰려 있다 → low-rank로 근사할 수 있다", 24, MUTED),
-        ).arrange(DOWN, buff=0.15).to_edge(DOWN, buff=0.3)
-        self.play(FadeOut(dW), FadeIn(hint, shift=UP * 0.15))
-        self.wait(3.0)
+        # ================= 6) LoRA 로 가는 질문 =================
+        q = t("이 큰 ΔW 를, 작은 행렬 두 개로 표현할 수 없을까?", 32, LORA).to_edge(DOWN, buff=0.3)
+        self.play(FadeOut(burden), FadeIn(q, shift=UP * 0.1), Indicate(big, color=LORA, scale_factor=1.03))
+        self.wait(2.4)

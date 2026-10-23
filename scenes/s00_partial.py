@@ -66,13 +66,15 @@ class PartialDerivative(ThreeDScene):
         surf.set_fill_by_value(axes=ax, colorscale=[("#1F3A68", 0), ("#2E6FB0", 2), ("#2BD9A0", 4.5), (ACCENT, 6)], axis=2)
 
         # ---------- 1) 곡면 ----------
-        cap = self.cap("z = f(x, y)  :  입력 2개, 출력 1개")
+        cap = self.cap("z = f(x, y)  :  변수 2개, 출력 1개")
         formula = self.fixed(MathTex(r"z = 0.15x^2 + 0.25y^2 + 0.2xy + 0.5", font_size=34, color=MUTED)
                              .to_corner(DL, buff=0.4))
         self.play(FadeIn(cap), Create(ax), FadeIn(lx), FadeIn(ly), FadeIn(lz))
         self.play(Create(surf), FadeIn(formula), run_time=2.2)
         self.begin_ambient_camera_rotation(rate=0.06)
-        self.wait(1.5)
+        self.wait(1.0)
+        cap = self.swap(cap, self.cap("x, y = 가중치,   z = 손실  이라고 생각하자", ACCENT))
+        self.wait(1.4)
         self.stop_ambient_camera_rotation()
 
         # ---------- 2) 한 점, 방향마다 다른 기울기 ----------
@@ -308,25 +310,16 @@ class PartialDerivative(ThreeDScene):
         cap = self.swap(cap, self.cap("z가 줄었다  →  내려갔다", LORA))
         self.wait(1.6)
 
-        # 일반: 항상 음수
-        cap = self.swap(cap, self.cap("(1)에 (2)를 넣으면  →  왜 항상 내려갈까?", LORA))
-        step_tex = panel(
-            MathTex(r"\Delta z \approx 0.65 \times (-\eta \times 0.65) + 0.80 \times (-\eta \times 0.80)", font_size=36),
-            t("(1)의 Δx, Δy 자리에 (2)의 걸음을 넣으면  →  기울기 × 기울기 = 제곱", 24, MUTED),
-            MathTex(r"= -\eta\,(0.65^2 + 0.80^2)\ <\ 0", font_size=40, color=LORA),
-            t("제곱은 항상 양수  →  기울기가 어떤 값이든 반대로 걸으면 반드시 내려간다", 24, MUTED),
-        )
-        self.play(FadeOut(p_now), FadeIn(step_tex))
-        self.wait(3.0)
+        self.wait(0.6)
         self.play(FadeOut(l_gx), FadeOut(l_gy), FadeOut(l_g), FadeOut(l_d))
 
         # ---------- 8) 일반화 ----------
-        self.play(*[FadeOut(m) for m in self.mobjects if m not in (cap,)], FadeOut(step_tex), run_time=0.8)
-        cap = self.swap(cap, self.cap("입력이 늘어나면?"))
+        self.play(*[FadeOut(m) for m in self.mobjects if m not in (cap,)], run_time=0.8)
+        cap = self.swap(cap, self.cap("가중치가 늘어나면?"))
         rows = VGroup(
-            VGroup(t("입력 2개", 30, FG), t("하나 고정  →  단면은 곡선", 30, MUTED)),
-            VGroup(t("입력 3개", 30, FG), t("둘 고정  →  역시 곡선 (그림만 못 그림)", 30, MUTED)),
-            VGroup(t("입력 70억 개", 30, ACCENT), t("나머지 전부 고정  →  하나씩 델타", 30, MUTED)),
+            VGroup(t("가중치 2개", 30, FG), t("하나 고정  →  단면은 곡선", 30, MUTED)),
+            VGroup(t("가중치 3개", 30, FG), t("둘 고정  →  역시 곡선 (그림만 못 그림)", 30, MUTED)),
+            VGroup(t("가중치 70억 개", 30, ACCENT), t("나머지 전부 고정  →  하나씩 델타", 30, MUTED)),
         )
         for r in rows:
             r.arrange(RIGHT, buff=0.6)

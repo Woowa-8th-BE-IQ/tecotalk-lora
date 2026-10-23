@@ -122,21 +122,23 @@ class NetworkToLoRA(Scene):
         mid_x = (XS[TARGET] + XS[TARGET + 1]) / 2
         low_y = layers[TARGET].get_bottom()[1] - 1.1
         bott = VGroup(*[
-            Circle(NODE_R * 0.9, color=LORA, stroke_width=2.5).set_fill(BLACK, 1)
+            Square(NODE_R * 1.7, color=LORA, stroke_width=2.5).set_fill(BLACK, 1)
             .move_to([mid_x + (i - (RANK - 1) / 2) * 0.55, low_y, 0])
             for i in range(RANK)
         ])
         rng2 = np.random.default_rng(11)
         a_edges = [Line(s.get_center(), b.get_center(), buff=NODE_R) for s in layers[TARGET] for b in bott]
         b_edges = [Line(b.get_center(), d.get_center(), buff=NODE_R) for b in bott for d in layers[TARGET + 1]]
-        for e in a_edges + b_edges:
+        for e in a_edges:
             e.set_stroke(LORA, 1.6, 0.85)
+        for e in b_edges:
+            e.set_stroke(LORA, 1.0, 0.18)
         A = VGroup(*a_edges)
         B = VGroup(*b_edges)
 
         lab_A = t("A", 30, LORA, weight="BOLD").move_to([mid_x - 1.25, low_y - 0.1, 0])
         lab_B = t("B", 30, LORA, weight="BOLD").move_to([mid_x + 1.25, low_y - 0.1, 0])
-        lab_r = t(f"r = {RANK}", 24, LORA).next_to(bott, DOWN, buff=0.2)
+        lab_r = t(f"r = {RANK}개 숫자 (뉴런 아님, 그냥 통로)", 22, LORA).next_to(bott, DOWN, buff=0.2)
 
         self.play(Transform(caption, t("옆에 작은 우회로를 붙인다", 36).to_edge(UP, buff=0.35)))
         self.play(FadeIn(bott, scale=0.5))
@@ -145,6 +147,23 @@ class NetworkToLoRA(Scene):
         self.play(FadeIn(lab_A), FadeIn(lab_B), FadeIn(lab_r))
         self.wait(0.6)
 
+        # 6-b) 두 길이 더해진다
+        self.play(Transform(caption, t("입력은 두 길로 가서, 끝에서 더해진다", 36).to_edge(UP, buff=0.35)))
+        w_main = [e for e in edges[TARGET]]
+        self.play(*[ShowPassingFlash(e.copy().set_stroke(FG, 3, 1), time_width=0.6) for e in w_main],
+                  *[ShowPassingFlash(e.copy().set_stroke(LORA, 4, 1), time_width=0.6) for e in a_edges],
+                  run_time=0.8)
+        self.play(*[ShowPassingFlash(e.copy().set_stroke(LORA, 4, 1), time_width=0.6) for e in b_edges], run_time=0.6)
+        self.play(*[Indicate(n, color=ACCENT, scale_factor=1.5) for n in layers[TARGET + 1]], run_time=0.8)
+        sum_lab = t("원본 결과 + 패치 결과", 24, ACCENT).next_to(layers[TARGET + 1], RIGHT, buff=0.3).shift(DOWN * 1.6)
+        self.play(FadeIn(sum_lab))
+        self.wait(0.6)
+
+        # 6-c) B = 0 에서 시작
+        self.play(Transform(caption, t("B는 0에서 시작  →  처음엔 원본과 똑같다", 36).to_edge(UP, buff=0.35)),
+                  FadeOut(sum_lab), Indicate(B, color=MUTED, scale_factor=1.0))
+        self.wait(1.2)
+
         # 7) 우회로만 학습
         n_lora = len(a_edges) + len(b_edges)
         counter2 = VGroup(
@@ -152,12 +171,15 @@ class NetworkToLoRA(Scene):
             t(f"원본 {n_params}개 고정", 24, MUTED),
         ).arrange(DOWN, aligned_edge=RIGHT, buff=0.12).to_corner(DR, buff=0.5)
         self.play(
-            Transform(caption, t("우회로만 학습한다", 36).to_edge(UP, buff=0.35)),
+            Transform(caption, t("우회로만 학습한다  →  B가 점점 켜진다", 36).to_edge(UP, buff=0.35)),
             FadeIn(counter2),
         )
-        for _ in range(3):
+        for k in range(3):
+            lvl = (k + 1) / 3
             anims = [e.animate.set_stroke(LORA, 0.8 + 3.2 * rng2.random(), 0.35 + 0.65 * rng2.random())
-                     for e in a_edges + b_edges]
+                     for e in a_edges]
+            anims += [e.animate.set_stroke(LORA, 0.6 + 3.0 * lvl * rng2.random(), 0.18 + 0.75 * lvl * rng2.random())
+                      for e in b_edges]
             self.play(*anims, run_time=0.8)
         self.wait(0.6)
 
@@ -170,4 +192,6 @@ class NetworkToLoRA(Scene):
         cap_p = t("패치", 20, LORA).next_to(formula[5:7], DOWN, buff=0.1)
         self.play(FadeOut(caption, shift=UP * 0.2), FadeOut(frozen_label), Write(formula))
         self.play(FadeIn(cap_w), FadeIn(cap_p))
+        real = t("실제 Transformer에선 Wq, Wv 같은 행렬마다 이런 우회로가 하나씩 붙는다", 22, MUTED).to_edge(DOWN, buff=0.3)
+        self.play(FadeOut(counter2), FadeIn(real))
         self.wait(2.5)

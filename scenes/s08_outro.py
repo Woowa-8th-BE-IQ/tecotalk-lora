@@ -41,7 +41,7 @@ class Outro(Scene):
         full = heat(rng.normal(0, 1, (N, N))).move_to(LEFT * 3.3 + DOWN * 0.2)
         Bm, Am = rng.normal(0, 1, (N, 1)), rng.normal(0, 1, (1, N))
         low = heat(Bm @ Am).move_to(RIGHT * 3.3 + DOWN * 0.2)
-        lt = VGroup(t("사전학습 · Muon", 28, POS), t("모든 방향을 넓게 (high-rank)", 22, MUTED)).arrange(DOWN, buff=0.08)
+        lt = VGroup(t("사전학습", 28, POS), t("모든 방향을 넓게 (high-rank)", 22, MUTED)).arrange(DOWN, buff=0.08)
         rt = VGroup(t("파인튜닝 · LoRA", 28, LORA), t("필요한 방향만 좁게 (low-rank)", 22, MUTED)).arrange(DOWN, buff=0.08)
         lt.next_to(full, DOWN, buff=0.3)
         rt.next_to(low, DOWN, buff=0.3)
@@ -59,7 +59,7 @@ class Outro(Scene):
             ("무엇을", "LoRA: 원본은 얼리고 B·A만 학습", LORA),
             ("얼마나", "r = 표현력, α = 볼륨", LORA),
             ("어떻게", "학습률 = 보폭, AdamW = 방향별 보폭", ACCENT),
-            ("요즘", "Muon: 행렬 통째로 보폭 맞추기", POS),
+            ("구분", "활성 파라미터 = 추론,  LoRA = 학습", POS),
         ]
         rows = VGroup()
         for k, (q, a, col) in enumerate(items):
